@@ -27,3 +27,9 @@ spring:
         format_sql: true
     show-sql: true
 
+  logging:
+    level:
+      org:
+        springframework:
+          security: DEBUG
+          web: DEBUG
