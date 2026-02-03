@@ -7,8 +7,10 @@ import com.aadhaar.auth.auth_backend.enitites.RefreshToken;
 import com.aadhaar.auth.auth_backend.enitites.User;
 import com.aadhaar.auth.auth_backend.repositories.RefreshTokenRepository;
 import com.aadhaar.auth.auth_backend.repositories.UserRepository;
+import com.aadhaar.auth.auth_backend.security.CookieService;
 import com.aadhaar.auth.auth_backend.security.JWTService;
 import com.aadhaar.auth.auth_backend.services.AuthService;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.AllArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.http.HttpStatus;
@@ -30,6 +32,8 @@ public class AuthController {
 
     private final AuthService authService;
 
+    private final CookieService cookieService;
+
     private final RefreshTokenRepository refreshTokenRepository;
 
     private final AuthenticationManager authenticationManager;
@@ -42,7 +46,8 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<TokenResponse> login(
-            @RequestBody LoginRequest loginRequest
+            @RequestBody LoginRequest loginRequest,
+            HttpServletResponse response
     ) {
         Authentication authentication = authenticate(loginRequest);
         User user = userRepository.findByEmail(loginRequest.email())
@@ -66,6 +71,9 @@ public class AuthController {
 ;
         String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = jwtService.generateRefreshToken(user , refreshTokenObject.getJti());
+
+        cookieService.attachRefreshCookie(response , refreshToken , (int) jwtService.getRefreshTtlSeconds());
+        cookieService.addNoStoreHeaders(response);
 
         TokenResponse tokenResponse =  TokenResponse.of(
                 accessToken,
