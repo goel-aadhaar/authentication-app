@@ -3,7 +3,9 @@ package com.aadhaar.auth.auth_backend.controllers;
 import com.aadhaar.auth.auth_backend.dtos.LoginRequest;
 import com.aadhaar.auth.auth_backend.dtos.TokenResponse;
 import com.aadhaar.auth.auth_backend.dtos.UserDto;
+import com.aadhaar.auth.auth_backend.enitites.RefreshToken;
 import com.aadhaar.auth.auth_backend.enitites.User;
+import com.aadhaar.auth.auth_backend.repositories.RefreshTokenRepository;
 import com.aadhaar.auth.auth_backend.repositories.UserRepository;
 import com.aadhaar.auth.auth_backend.security.JWTService;
 import com.aadhaar.auth.auth_backend.services.AuthService;
@@ -18,12 +20,17 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
+import java.util.UUID;
+
 @RestController
 @RequestMapping("api/v1/auth")
 @AllArgsConstructor
 public class AuthController {
 
     private final AuthService authService;
+
+    private final RefreshTokenRepository refreshTokenRepository;
 
     private final AuthenticationManager authenticationManager;
 
@@ -46,11 +53,23 @@ public class AuthController {
             throw new DisabledException("User is Disabled");
         }
 
+        String jti = UUID.randomUUID().toString();
+        var refreshTokenObject = RefreshToken.builder()
+                .jti(jti)
+                .user(user)
+                .createdAt(Instant.now())
+                .expiresAt((Instant.now().plusSeconds(jwtService.getRefreshTtlSeconds())))
+                .revoked(false)
+                .build();
+
+        refreshTokenRepository.save(refreshTokenObject);
+;
         String accessToken = jwtService.generateAccessToken(user);
+        String refreshToken = jwtService.generateRefreshToken(user , refreshTokenObject.getJti());
 
         TokenResponse tokenResponse =  TokenResponse.of(
                 accessToken,
-                "",
+                refreshToken,
                 jwtService.getAccessTtlSeconds(),
                 modelMapper.map(user, UserDto.class)
         );
