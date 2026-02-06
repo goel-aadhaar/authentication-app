@@ -2,6 +2,7 @@ package com.aadhaar.auth.auth_backend.config;
 
 import com.aadhaar.auth.auth_backend.dtos.ApiError;
 import com.aadhaar.auth.auth_backend.security.JWTAuthenticationFilter;
+import com.aadhaar.auth.auth_backend.security.OAuth2SuccessHandler;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -18,6 +19,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import tools.jackson.databind.ObjectMapper;
 
@@ -26,7 +28,11 @@ import tools.jackson.databind.ObjectMapper;
 @AllArgsConstructor
 public class SecurityConfig {
 
+    @Autowired
     private final JWTAuthenticationFilter jwtAuthenticationFilter;
+
+    @Autowired
+    private AuthenticationSuccessHandler oAuth2SuccessHandler;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -43,6 +49,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").permitAll()
                         .anyRequest().authenticated()
                 )
+                .oauth2Login(
+                        oauth2 -> oauth2
+                        .successHandler(oAuth2SuccessHandler)
+                        .failureHandler(null)
+                )
+                .logout(AbstractHttpConfigurer::disable)
                 .exceptionHandling(ex -> ex.authenticationEntryPoint((request , response , authEx) -> {
                     response.setStatus(401);
                     response.setContentType("application/json");
